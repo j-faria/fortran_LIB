@@ -355,7 +355,7 @@ end subroutine sqrt_matrix
     call centered(matrix, m)
 
     ! calculate variance matrix
-    var_matrix = matmul(transpose(m), m)*(1./real(nobs))
+    var_matrix = matmul(transpose(m), m) * (1./real(nobs))
 
     deallocate(m)
 

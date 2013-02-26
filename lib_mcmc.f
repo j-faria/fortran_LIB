@@ -23,6 +23,10 @@ module lib_mcmc
   
   real(dp), parameter :: pi = 3.1415926535897932384626433832795029_dp
   
+  ! the most negative argument to the exp() function is log(tiny(1.0_dp)) which
+  ! is around -708. We set the limit at 10% of this value to get reasonable results
+  real(dp), parameter :: smallest_exp_arg = 0.1_dp * log(tiny(1.0_dp))
+  
 contains
 
 
@@ -165,6 +169,25 @@ end function inverserandlin
     endif
 
   end function loguniform
+  
+!*******************************************************************************
+! log-density of the jeffreys distribution on [a,b]
+!*******************************************************************************
+  real(dp) function logjeffreys(x, a, b)
+    
+    real(dp), intent(in) :: x, a, b
+
+    if(x<a) then
+        logjeffreys = create_inf(-1.0_dp)
+        return
+    else if (x>b) then
+        logjeffreys = create_inf(-1.0_dp)
+        return
+    else
+        logjeffreys = -log(x*log(b/a))
+    endif
+
+  end function logjeffreys
 
 !*******************************************************************************
 ! log-density of the multivariate normal distribution
@@ -255,15 +278,14 @@ end function gauss
 !   ncov:   the covariance matrix gamma will be updated every ncov iterations
 !   out:    sample of simulated values
 !*******************************************************************************
-subroutine metropolis(f, x, init, profil, gamma, niter, nc, ncov, out)
+  subroutine metropolis(f, init, profil, gamma, niter, nc, ncov, out)
 
     interface 
-      real(kind=8) function f(x, teta)
-            real(kind=8), intent(in):: x(:,:), teta(:)
-      end function
+        real(kind=8) function f(teta)
+            real(kind=8), intent(in):: teta(:)
+        end function
     end interface
 
-    real(dp), intent(in) :: x(:,:)
     real(dp), intent(in)    :: init(:)
     real(dp), intent(inout) :: gamma(:,:)
     real(dp), intent(out)   :: out(:,:)
@@ -274,7 +296,7 @@ subroutine metropolis(f, x, init, profil, gamma, niter, nc, ncov, out)
 
     real(dp), allocatable   :: parnew(:), genvect(:)
     integer, allocatable    :: varpart(:), ctpart(:)
-    real(dp)    :: fact_rejet, r, random
+    real(dp)    :: fact_rejet, r, random, ratio
     integer     :: n, dim, count1, count2, rejet, i
 
     ! number of updates
@@ -287,22 +309,22 @@ subroutine metropolis(f, x, init, profil, gamma, niter, nc, ncov, out)
     allocate(varpart(dim))
     
     if(dim /= n) then
-      allocate(ctpart(n-dim))
+        allocate(ctpart(n-dim))
     else
-      allocate(ctpart(n))
+        allocate(ctpart(n))
     endif
     
     count1=0
     count2=0
     
     do i=1, size(profil)
-      if(profil(i)==1) then
-        count1 = count1 + 1
-        varpart(count1) = i
-      else
-        count2 = count2 + 1
-        ctpart(count2) = i
-      endif
+        if(profil(i)==1) then
+            count1 = count1 + 1
+            varpart(count1) = i
+        else
+            count2 = count2 + 1
+            ctpart(count2) = i
+        endif
     enddo
 
     ! initialization 
@@ -311,8 +333,7 @@ subroutine metropolis(f, x, init, profil, gamma, niter, nc, ncov, out)
     allocate(gamnew(n, n))
     call sqrt_matrix(gamma, gamnew)
     gamma = gamnew
-    deallocate(gamnew)
-
+    
     allocate(gen(n))
     gen = 0.0_dp
 
@@ -322,66 +343,71 @@ subroutine metropolis(f, x, init, profil, gamma, niter, nc, ncov, out)
     
     out(1,:) = init
     fact_rejet = 2.4/sqrt(real(dim))
+    write(*,*) fact_rejet
     rejet = 0
 
     ! start the iterations
     main: do i=1,niter
   
-      ! generation of the jump on variable components
-      call gengaussvect(fact_rejet*gamma, gen)
-      if(dim/=n) genvect(ctpart) = profil(ctpart)
-      genvect(varpart) = gen
+        ! generation of the jump on variable components
+        call gengaussvect(fact_rejet*gamma, gen)
+        if(dim/=n) genvect(ctpart) = profil(ctpart)
+        genvect(varpart) = gen
 
 
-      ! computation of the ratio of target functions
-      ! be careful!! f is the natural logarithm of the target function
-      if(f(x, parnew+genvect)-f(x, parnew)<=-30.*log(10.)) then
-        r = 0.0_dp
-      else
-        if(f(x, parnew+genvect)-f(x, parnew)>0) then
-          r = 1.0_dp
+        ! computation of the ratio of target functions
+        ! be careful!! f is the natural logarithm of the target function
+        ratio = f(parnew+genvect) - f(parnew)
+        if(ratio < smallest_exp_arg) then
+            r = 0.0_dp
+        else if(ratio > 0) then
+            r = 1.0_dp
         else
-          r =	exp(f(x,parnew+genvect)-f(x,parnew))
+            r = exp(ratio)
         endif
-      endif
+
   
-      ! accept or reject the new value  
-      call random_number(random)
-      if (random < r ) then
-        parnew = parnew + genvect
-      else
-        rejet = rejet + 1
-      endif
-      out(i+1,:) = parnew
-
-      ! updates of the multiplicative constant
-      if (mod(i,nc)==0) then
-        if ((1. - real(rejet)/real(nc)) < 0.23) then
-          fact_rejet = fact_rejet *0.9
-        elseif ((1. - real(rejet)/real(nc)) > 0.44) then
-          fact_rejet = fact_rejet * 1.1
-        end if
-        rejet=0
-      end if
-
-      ! updates of the covariance matrix
-      if (mod(i,ncov)==0) then
-        call variance_matrix(out(i-ncov+1:i, varpart), gamnew)
-        if (.not.(all(gamnew==0.))) then
-          gamma=gamnew
-          call sqrt_matrix(gamma, gamnew)
-          gamma=gamnew
+        ! accept or reject the new value  
+        call random_number(random)
+        if (random < r ) then
+            parnew = parnew + genvect
+        else
+            rejet = rejet + 1
         endif
-      end if
+        out(i+1,:) = parnew
+      
+        write(*,*) i, rejet, (i-rejet)/real(i)
+
+        ! updates of the multiplicative constant
+        if (mod(i,nc)==0) then
+            if ((1. - real(rejet)/real(nc)) < 0.23) then
+                fact_rejet = fact_rejet *0.9
+            else if ((1. - real(rejet)/real(nc)) > 0.44) then
+                fact_rejet = fact_rejet * 1.1
+            end if
+            write(*,*) fact_rejet, 1. - real(rejet)/real(nc)
+            rejet=0
+        end if
+
+        ! updates of the covariance matrix
+        if (mod(i,ncov)==0) then
+            call variance_matrix(out(i-ncov+1:i, varpart), gamnew)
+            if (.not.(all(gamnew==0.))) then
+                gamma=gamnew
+                call sqrt_matrix(gamma, gamnew)
+                gamma=gamnew
+            endif
+        end if
 
     end do main
     
+    deallocate(gamnew)
     deallocate(gen)
     deallocate(genvect)
     deallocate(parnew)
     deallocate(varpart, ctpart)
 
-end subroutine metropolis
+  end subroutine metropolis
 
 
 end module lib_mcmc
