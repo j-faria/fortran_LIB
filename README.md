@@ -1,7 +1,7 @@
 fortran_LIB
 ===========
 
-Library of Fortran 95 functions and subroutines for many applications
+### Library of Fortran 95 functions and subroutines for many applications
 
 * test_libs - 
 This is where the libraries are tested. Compile with
