@@ -6,12 +6,7 @@
 # *******************************************************
 .SUFFIXES:
 
-# *******************************************************
-# ***     Especificar os sufixos para .f .o .do       ***
-# *******************************************************
-#.SUFFIXES: .f90 .o
 
-#
 # *******************************************************
 # ***                       Macros                    ***
 # *******************************************************
@@ -29,7 +24,7 @@ ARQ = ar r
 #samedir = .
 #FTN     = ftnchek
 
-lib = /home/joao/Programs/fortran/lib
+lib = ./
 
 #
 # *******************************************************
@@ -42,10 +37,8 @@ lib = /home/joao/Programs/fortran/lib
 
 #
 # *******************************************************
-# ***   Especificar as directorias com as subrotinas  ***
+# ***                Object files                     ***
 # *******************************************************
-
-
 OBJS =\
 lib_algebra.o\
 lib_array.o\
@@ -69,16 +62,14 @@ lib_mcmc.o
 OBJ_test = test_libs.o
 
 # **********************************************************
-# ***             Compilar os programas                  *** 
+# ***                     Compile                        *** 
 # **********************************************************
 
 libmodules.a: $(OBJS)
 	$(ARQ) $@ $^
 
-
 test: $(OBJ_test)
 	gfortran -fbacktrace -o $@ $^ -L$(lib) -I$(lib) $(LINK) -lmodules
-
 
 clean:
 	rm -f $(OBJS) libmodules.a *~
