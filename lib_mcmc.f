@@ -32,18 +32,18 @@ contains
 
 !*******************************************************************************
 ! generation of a random vector X from a multivariate normal distribution with 
-! mean zero and covariance matrix GAM.
+! mean zero and covariance matrix SIGMA.
 ! note: in order to improve the speed of the algorithms, the subroutine uses the
-!       square root matrix of gamma
+!       square root matrix of sigma
 !*******************************************************************************
-subroutine gengaussvect(gam, x)
+  subroutine gengaussvect(sigma, x)
 
-    real(dp), intent(in)    :: gam(:,:)
+    real(dp), intent(in)    :: sigma(:,:)
     real(dp), intent(out)   :: x(:)
     integer :: n, i
     
-    n = size(gam, dim=1)
-    if (size(gam, dim=2)/=n) then
+    n = size(sigma, dim=1)
+    if (size(sigma, dim=2)/=n) then
      print *, 'GENGAUSSVECT : gam is not square'
     end if
 
@@ -51,9 +51,9 @@ subroutine gengaussvect(gam, x)
      x(i) = random_normal()
     end do
 
-    x = matmul(gam, x)
+    x = matmul(sigma, x)
 
-end subroutine gengaussvect
+  end subroutine gengaussvect
 
 !*******************************************************************************
 ! square root of a matrix
@@ -104,7 +104,7 @@ end subroutine gengaussvect
 !*******************************************************************************
 ! scaled empirical cumulative distribution on a grid
 !*******************************************************************************
-subroutine fdremp(vect,grille)
+  subroutine fdremp(vect,grille)
 
     real(dp), intent(inout) :: vect(:)
     real(dp), intent(in)    :: grille(:)
@@ -129,12 +129,12 @@ subroutine fdremp(vect,grille)
     vect=vect/vect(n)
     deallocate(vect2)
 
-end subroutine fdremp
+  end subroutine fdremp
 
 !*******************************************************************************
 ! inversion of the empirical cdf
 !*******************************************************************************
-function inverserandlin(grille, fdr)
+  function inverserandlin(grille, fdr)
 
     real, intent(in) :: grille(:), fdr(:)
     real :: inverserandlin, alea
@@ -149,7 +149,7 @@ function inverserandlin(grille, fdr)
 
     inverserandlin = grille(i-1) + (alea-fdr(i-1))*((grille(i)-grille(i-1))/(fdr(i)-fdr(i-1)))
 
-end function inverserandlin
+  end function inverserandlin
 
 !*******************************************************************************
 ! log-density of the uniform distribution on [a,b]
@@ -192,7 +192,7 @@ end function inverserandlin
 !*******************************************************************************
 ! log-density of the multivariate normal distribution
 !*******************************************************************************
-real(dp) function normlogdens(x, mu, sigma)
+  real(dp) function normlogdens(x, mu, sigma)
 
     real(dp), intent(in)    :: x(:), mu(:), sigma(:, :)
     real(dp), allocatable   :: teta(:, :)
@@ -215,12 +215,12 @@ real(dp) function normlogdens(x, mu, sigma)
     
     deallocate(teta)
 
-end function normlogdens
+  end function normlogdens
 
 !*******************************************************************************
 !! density estimation by a gaussian kernel
 !*******************************************************************************
-real(dp) function gausskernel(x, serie)
+  real(dp) function gausskernel(x, serie)
 
     real(dp), intent(in) :: x, serie(:)
 
@@ -241,7 +241,7 @@ real(dp) function gausskernel(x, serie)
 
     gausskernel = gausskernel/(n*h)
 
-end function gausskernel
+  end function gausskernel
 
 !*******************************************************************************
 ! density distribution of an univariate normal distribution
@@ -249,7 +249,7 @@ end function gausskernel
 !   mean    : mean of the distribution
 !   std     : standard deviation of the distribution
 !*******************************************************************************
-real(dp) function gauss(x, mean, std)
+  real(dp) function gauss(x, mean, std)
 
     real(dp), intent(in) :: x, mean, std
 
@@ -261,24 +261,27 @@ real(dp) function gauss(x, mean, std)
 
     gauss = (1.0_dp/ (sqrt(2.0_dp*pi)*std) )*exp( -0.5_dp * (((x-mean)/std)**2) )
 
-end function gauss
+  end function gauss
 
 
 !*******************************************************************************
 ! execute niter iterations of the metropolis algorithm (n-dimensional). The jump
-! function is multivariate normal with covariance matrix c*gamma
+! function is multivariate normal with covariance matrix c*sigma
 !
 !   f:      natural log of the target function
 !   init:   starting vector (in)
-!   gamma:  starting covariance matrix of the gaussian jump function (in)
+!   sigma:  starting covariance matrix of the gaussian jump function (in)
 !           final covariance matrix of the jump function (out)
 !   niter:  number of iterations
 !   nc:     the multiplicative constant c will be adjusted every nc iterations,
 !           to preserve an adequate acceptation rate
-!   ncov:   the covariance matrix gamma will be updated every ncov iterations
+!   ncov:   the covariance matrix sigma will be updated every ncov iterations
+!   nsave:  output current sample every nsave iterations
 !   out:    sample of simulated values
+!   file_unit: optionally, write (all!) samples to this file unit
 !*******************************************************************************
-  subroutine metropolis(f, init, profil, gamma, niter, nc, ncov, out)
+  subroutine metropolis(f, init, profil, sigma, niter, &
+                        nc, ncov, nsave, out, file_unit)
 
     interface 
         real(kind=8) function f(teta)
@@ -287,13 +290,16 @@ end function gauss
     end interface
 
     real(dp), intent(in)    :: init(:)
-    real(dp), intent(inout) :: gamma(:,:)
+    real(dp), intent(inout) :: sigma(:,:)
     real(dp), intent(out)   :: out(:,:)
     
-    integer, intent(in)     :: niter, nc, ncov, profil(:)
-    
-    real(dp), allocatable   :: gen(:), gamnew(:,:)
+    integer, intent(in)     :: niter, nc, ncov, nsave, profil(:)
+    integer, intent(in), optional :: file_unit
 
+
+    logical :: output = .false.
+    
+    real(dp), allocatable   :: gen(:), sigma_new(:,:)
     real(dp), allocatable   :: parnew(:), genvect(:)
     integer, allocatable    :: varpart(:), ctpart(:)
     real(dp)    :: fact_rejet, r, random, ratio
@@ -302,6 +308,9 @@ end function gauss
     ! number of updates
     print*, 'metropolis: multiplicative constant will be updated ', floor((1.*niter)/(1.*nc)), ' times'
     print*, '            covariance matrix will be updated ', floor((1.*niter)/(1.*ncov)), ' times'
+
+    ! should output to file?
+    if (present(file_unit)) output = .true.
 
     ! determine variable and fixed components of the parameters vector
     n = size(init)
@@ -330,9 +339,9 @@ end function gauss
     ! initialization 
     call seed_random_number()   ! seed RNG
     
-    allocate(gamnew(n, n))
-    call sqrt_matrix(gamma, gamnew)
-    gamma = gamnew
+    allocate(sigma_new(n, n))
+    call sqrt_matrix(sigma, sigma_new)
+    sigma = sigma_new
     
     allocate(gen(n))
     gen = 0.0_dp
@@ -343,14 +352,22 @@ end function gauss
     
     out(1,:) = init
     fact_rejet = 2.4/sqrt(real(dim))
-    write(*,*) fact_rejet
     rejet = 0
-
+    
+    ! information
+    do i=1,dim
+        write(*,*) sigma(i,i)
+    end do
+    write(6, '(8f15.6)') init
+    write(*,'(a)',advance='no') 'press Enter to start: '
+    read(*,*)
+    
+    
     ! start the iterations
     main: do i=1,niter
   
         ! generation of the jump on variable components
-        call gengaussvect(fact_rejet*gamma, gen)
+        call gengaussvect(fact_rejet*sigma, gen)
         if(dim/=n) genvect(ctpart) = profil(ctpart)
         genvect(varpart) = gen
 
@@ -365,16 +382,25 @@ end function gauss
         else
             r = exp(ratio)
         endif
-
   
         ! accept or reject the new value  
         call random_number(random)
         if (random < r ) then
             parnew = parnew + genvect
+            !write(*,*) 'accepting'
         else
             rejet = rejet + 1
         endif
         out(i+1,:) = parnew
+        
+        
+!        write(6, '(8f15.6)') parnew
+!        write(6, '(8f15.6)') genvect
+!        write(*,'(" 1 ")') !BP
+!        read(*,*)
+        
+        !output to file
+        if (output) write(file_unit, '(8f15.6)') parnew
       
         write(*,*) i, rejet, (i-rejet)/real(i)
 
@@ -385,23 +411,23 @@ end function gauss
             else if ((1. - real(rejet)/real(nc)) > 0.44) then
                 fact_rejet = fact_rejet * 1.1
             end if
-            write(*,*) fact_rejet, 1. - real(rejet)/real(nc)
-            rejet=0
+            !write(*,*) fact_rejet, 1. - real(rejet)/real(nc)
+            !rejet=0
         end if
 
         ! updates of the covariance matrix
         if (mod(i,ncov)==0) then
-            call variance_matrix(out(i-ncov+1:i, varpart), gamnew)
-            if (.not.(all(gamnew==0.))) then
-                gamma=gamnew
-                call sqrt_matrix(gamma, gamnew)
-                gamma=gamnew
+            call variance_matrix(out(i-ncov+1:i, varpart), sigma_new)
+            if (.not.(all(sigma_new==0.))) then
+                sigma=sigma_new
+                call sqrt_matrix(sigma, sigma_new)
+                sigma=sigma_new
             endif
         end if
 
     end do main
     
-    deallocate(gamnew)
+    deallocate(sigma_new)
     deallocate(gen)
     deallocate(genvect)
     deallocate(parnew)
