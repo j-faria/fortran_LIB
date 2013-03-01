@@ -1,6 +1,5 @@
-! MD5 of template: c1ad43ed9e5862b91b0d659b2ae0bfb1
 ! Various statistical quantities for arrays
-! Thomas Robitaille (c) 2010
+! original code from Thomas Robitaille (c) 2010
 ! João Faria 2013
 
 module lib_statistics

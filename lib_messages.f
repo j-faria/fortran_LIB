@@ -1,5 +1,5 @@
 ! Message/error handling
-! Thomas Robitaille (c) 2009
+! original code from Thomas Robitaille (c) 2009
 
 module lib_messages
 

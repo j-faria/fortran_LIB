@@ -1,4 +1,3 @@
-! MD5 of template: a679bec87739da68502fce69485b12be
 module lib_io
 
   implicit none

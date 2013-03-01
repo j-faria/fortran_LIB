@@ -1,6 +1,5 @@
-! MD5 of template: 874b367ed9a2602d10f066584f750d00
-! Array related routines (Integration, Interpolation, etc.)
-! Thomas Robitaille (c) 2009
+! Array related routines (integration, interpolation...)
+! original code from Thomas Robitaille (c) 2009
 
 module lib_array
 !  Defines the following routines:

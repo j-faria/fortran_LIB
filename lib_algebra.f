@@ -1,6 +1,5 @@
-! MD5 of template: 91795074d8a71be004d32d0a38f4ce99
 ! Algebra routines
-! Thomas Robitaille (c) 2009
+! original code from Thomas Robitaille (c) 2009
 
 module lib_algebra
 !  Defines the following routines:

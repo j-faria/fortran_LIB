@@ -1,5 +1,5 @@
 MODULE lib_pikaia12
-! Version 1.0 of PIKAIA  [ 2002 April 3 ]
+! Version 1.2 of PIKAIA  [ 2002 April 3 ]
 
 IMPLICIT NONE
 

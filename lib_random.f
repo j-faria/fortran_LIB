@@ -1,5 +1,5 @@
 ! Random number generation related routines
-! Alan Miller (c) 2000
+! original code from Alan Miller (c) 2000
 ! João Faria (c) 2013
 
 module lib_random

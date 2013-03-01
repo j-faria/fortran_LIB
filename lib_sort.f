@@ -1,5 +1,5 @@
 ! Sorting related routines
-! João Faria (c) 2013
+! João Faria 2013
 !   Based on code written by John E. Pask, LLNL.
 
 module lib_sort
