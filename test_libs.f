@@ -80,30 +80,23 @@ program test_libs
             call assert_almost_equal(det, -306.0_dp, 'error in DETERMINANT')
                 
                 
-!                other_m(:,1) =  (/-1.01, 0.86, -4.60, 3.31, -4.81/)
-!                other_m(:,2) =  (/3.98, 0.53, -7.04, 5.29, 3.55/)
-!                other_m(:,3) =  (/3.30, 8.26, -3.89, 8.20, -1.51/)
-!                other_m(:,4) =  (/4.43, 4.96, -7.66, -7.33, 6.18/)
-!                other_m(:,5) =  (/7.31, -6.43, -6.16, 2.47, 5.58/)
-!                write(*,'(5f6.2)') other_m
-!                call eigen(other_m, val, vec)
-!                write(*,*) val
+            m(:,1) = (/1,1,0/)
+            m(:,2) = (/0,2,0/)
+            m(:,3) = (/0,-1,4/)
+            !write(*,'(3f6.2)') m
+            call eigen(m, val, vec)
+            !write(*,*) val
+            call assert_almost_equal(val(3), 4.0_dp, 'error in EIGEN')
 
-                m(:,1) = (/1,1,0/)
-                m(:,2) = (/0,2,0/)
-                m(:,3) = (/0,-1,4/)
-!                write(*,'(3f6.2)') m
-!                val = 0
-!                call eigen(m, val, vec)
-!                !write(*,*) val
-!                write(*,*)
                 
-                write(*,'(3f6.2)') m
-                call sqrt_matrix(m, new_m)
-                write(*,*)
-                write(*,'(3f6.2)') new_m
-
-
+            !write(*,'(3f6.2)') m
+            call sqrt_matrix(m, new_m)
+            !write(*,'(3f15.8)') new_m
+            call assert_almost_equal(new_m(1,1), sqrt(2.0_dp), 'error in SQRT_MATRIX')
+            
+            m = identity(3)
+            !write(*,'(3f6.2)') m
+            call assert_almost_equal(m(2,2), 1.0_dp, 'error in IDENTITY')
 
                 
                 
@@ -163,6 +156,8 @@ program test_libs
             a = create_nan()
             call assert(isnan(a), 'error in CREATE_NAN')
             a = create_inf(-1.0_dp)
+            call assert(isinf(a), 'error in CREATE_INF')
+            a = create_inf(1.0_dp)
             call assert(isinf(a), 'error in CREATE_INF')
             
             write(*,*) 'tested lib_utils without errors'

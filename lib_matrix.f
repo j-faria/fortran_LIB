@@ -24,6 +24,8 @@ module lib_matrix
   public :: eigen
   public :: sqrt_matrix
   public :: variance_matrix
+  public :: identity
+  
   
 contains
 
@@ -362,38 +364,30 @@ end subroutine sqrt_matrix
   end subroutine variance_matrix
 
 
+
+!*******************************************************************************
+! Produces an Identity Matrix of dimension (n,n)
+!*******************************************************************************
+  function identity(n)
+
+    integer, intent(in) :: n
+    real(dp), dimension(n,n) :: identity
+    integer :: j
+   
+    identity = 0.0_dp   ! set each element to zero
+
+    do j=1,n
+      identity(j,j) = 1.0_dp
+    end do
+    
+    return
+    
+  end function identity
+
+
 end module lib_matrix
 
 
 
 
-!!*******************************************************************************
-!! determinant of a matrix (numerical recipes)
-!!*******************************************************************************
-!real(dp) function det(matrix)
-!    
-!    real(dp), intent(in)    :: matrix(:,:)
 
-!    real(dp), allocatable   :: tabbis(:,:)
-!    real(dp) :: d
-!    integer, allocatable    :: indx(:)
-!    integer :: n, j
-
-!    n = size(matrix(1,:))
-!    
-!    allocate(indx(n),tabbis(n,n))
-!    
-!    tabbis = matrix
-!    
-!    call lu_decomposition(tabbis)
-!    
-!    d = 1.0_dp
-!    do j=1,n
-!        d = d * tabbis(j,j)
-!    enddo
-!    
-!    det = d
-!    
-!    deallocate(tabbis, indx)
-!    
-!end function
